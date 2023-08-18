@@ -1,10 +1,10 @@
-import 'package:commdelivery/app/routes/app_pages.dart';
 import 'package:get/get.dart';
 
 import 'package:commdelivery/app/core/ui/helpers/loader.dart';
 import 'package:commdelivery/app/core/ui/helpers/messages.dart';
 import 'package:commdelivery/app/dto/order_product_dto.dart';
 import 'package:commdelivery/app/models/product_model.dart';
+import 'package:commdelivery/app/pages/home/home_controller_web.dart';
 
 class ProductDetailController extends GetxController with Loader, Messages {
 
@@ -14,7 +14,7 @@ class ProductDetailController extends GetxController with Loader, Messages {
   late final Rx<ProductModel> _product;
   ProductModel get product => _product.value;
 
-  late final Rxn<OrderProductDto?> _order;
+  final Rxn<OrderProductDto?> _order = Rxn<OrderProductDto?>();
   OrderProductDto? get order => _order.value;
 
   final _amount = 1.obs;
@@ -25,20 +25,26 @@ class ProductDetailController extends GetxController with Loader, Messages {
   ProductDetailController();
 
   @override
-  void onInit() {
+  Future<void> onInit() async {
     super.onInit();
     showLoader(_loading);
     messageListener(_message);
 
-    if (Get.arguments == null) {
-      Get.offAllNamed(Routes.HOME);
-    } else {
-      _product = Rx<ProductModel>(Get.arguments['product'] as ProductModel);
-      _order = Rxn<OrderProductDto?>(Get.arguments['order'] as OrderProductDto?);
+    final homecontroller = Get.find<HomeController>();
+    if (homecontroller.products.isEmpty) {
+      await homecontroller.refreshPage();
+    }
+
+    ProductModel itemBag = homecontroller.products.where((product) => product.id.toString() == Get.parameters['id']).first;
+    _product = Rx<ProductModel>(itemBag);
+
+    if (int.parse(Get.parameters['amount'].toString()) > 0){
+      _order.value = OrderProductDto(product: product, amount: int.parse(Get.parameters['amount'].toString()));
     }
 
     final amountBag = (order != null) ? order!.amount : 1;
-    initial(amountBag, order != null);
+    initial(amountBag, order != null);    
+
   }
 
   void initial (int amountBag, bool hasOrder) {

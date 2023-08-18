@@ -8,10 +8,10 @@ class HomeBinding extends Bindings {
 
   @override
   void dependencies() {
-    Get.lazyPut<CustomDio>(() => CustomDio());
-    Get.lazyPut<ProductsRepositoryImpl>(() => ProductsRepositoryImpl(dio: Get.find()));
-    Get.lazyPut<SessionStorage>(() => SessionStorage());
-    Get.put(HomeController(Get.find(), Get.find()));
+    Get.lazyPut<CustomDio>(() => CustomDio(), fenix: true);
+    Get.lazyPut<ProductsRepositoryImpl>(() => ProductsRepositoryImpl(dio: Get.find()), fenix: true);
+    Get.lazyPut<SessionStorage>(() => SessionStorage(), fenix: true);
+    Get.put(HomeController(Get.find()), permanent: true);
   }
 
 }

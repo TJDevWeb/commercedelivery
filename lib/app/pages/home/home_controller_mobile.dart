@@ -64,10 +64,18 @@ class HomeController extends GetxController with Loader, Messages {
   Future<void> detailPage(ProductModel product) async {
     OrderProductDto? orders =
         shoppingBag.where((order) => order.product == product).firstOrNull;
-    final orderProduct = await Get.toNamed(Routes.DETAILS, arguments: {
-      'product': product,
-      'order': orders,
-    });
+
+    var uri = Routes.DETAILS;
+    uri += '?id=${product.id}';
+    uri += (orders != null) ? '&amount=${orders.amount}' : '&amount=1';
+
+    final orderProduct = await Get.toNamed(uri);
+
+    // final orderProduct = await Get.toNamed(Routes.DETAILS, arguments: {
+    //   'product': product,
+    //   'order': orders,
+    // });
+            
     if (orderProduct != null) {
       //como delivery_product_title é apenas um widget não criamos binding nem controller
       //buscamos o HomeController atraves do Get.find()

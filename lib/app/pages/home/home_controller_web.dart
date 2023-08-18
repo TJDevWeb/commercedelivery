@@ -16,7 +16,6 @@ class HomeController extends GetxController with Loader, Messages {
   final _message = Rxn<MessagesModel>();
 
   final ProductsRepositoryImpl _productsRepository;
-  final SessionStorage _storage;
 
   final products = <ProductModel>[].obs;
 
@@ -25,40 +24,14 @@ class HomeController extends GetxController with Loader, Messages {
 
   HomeController(
     this._productsRepository,
-    this._storage,
   );
 
   @override
-  void onInit() {
+  Future<void> onInit() async {
     super.onInit();
     showLoader(_loading);
     messageListener(_message);
-  }
-
-  @override
-  Future<void> onReady() async {
-    super.onReady();
-    try {
-      _loading(true);
-      await loadProducts();
-      if (_shoppingBag.isEmpty) {
-        final orderSession = _storage.getData(SessionStorageKeys.shoppingBag.key);
-        if (orderSession.isNotEmpty) {
-          final orderJson = jsonDecode(orderSession);
-          for (var e in orderJson) {
-            _shoppingBag.add(OrderProductDto.fromMap(e));
-          }
-        }
-      }
-      _loading(false);
-    } catch (e, s) {
-      _loading(false);
-      log('Erro ao carregar produtos', error: e, stackTrace: s);
-      _message(MessagesModel(
-          title: 'Erro',
-          message: 'Erro ao carregar produtos.',
-          type: MessageType.error));
-    }
+    await refreshPage();
   }
 
   Future<void> loadProducts() async {
@@ -68,8 +41,21 @@ class HomeController extends GetxController with Loader, Messages {
 
   Future<void> refreshPage() async {
     try {
+      _loading(true);
       await loadProducts();
+      if (_shoppingBag.isEmpty) {
+        final storage = Get.find<SessionStorage>();
+        final orderSession = storage.getData(SessionStorageKeys.shoppingBag.key);
+        if (orderSession.isNotEmpty) {
+          final orderJson = jsonDecode(orderSession);
+          for (var e in orderJson) {
+            _shoppingBag.add(OrderProductDto.fromMap(e));
+          }
+        }
+      }      
+      _loading(false);
     } catch (e, s) {
+      _loading(false);
       log('Erro ao carregar produtos', error: e, stackTrace: s);
       _message(MessagesModel(
           title: 'Erro',
@@ -80,11 +66,19 @@ class HomeController extends GetxController with Loader, Messages {
 
   Future<void> detailPage(ProductModel product) async {
     OrderProductDto? orders =
-        shoppingBag.where((order) => order.product == product).firstOrNull;
-    final orderProduct = await Get.toNamed(Routes.DETAILS, arguments: {
-      'product': product,
-      'order': orders,
-    });
+        shoppingBag.where((order) => order.product.id == product.id).firstOrNull;
+    
+    var uri = Routes.DETAILS;
+    uri += '?id=${product.id}';
+    uri += (orders != null) ? '&amount=${orders.amount}' : '&amount=0';
+
+    final orderProduct = await Get.toNamed(uri);    
+    
+    // final orderProduct = await Get.toNamed(Routes.DETAILS, arguments: {
+    //   'product': product,
+    //   'order': orders,
+    // });
+
     if (orderProduct != null) {
       //como delivery_product_title é apenas um widget não criamos binding nem controller
       //buscamos o HomeController atraves do Get.find()
@@ -95,7 +89,7 @@ class HomeController extends GetxController with Loader, Messages {
   void addOrUpdateBag(OrderProductDto orderProduct) {
     final bag = [..._shoppingBag]; //faz uma cópia da lista observável
     final orderIndex =
-        bag.indexWhere((order) => order.product == orderProduct.product);
+        bag.indexWhere((order) => order.product.id == orderProduct.product.id);
     if (orderProduct.amount == 0) {
       bag.removeAt(orderIndex);
     } else {
@@ -111,7 +105,8 @@ class HomeController extends GetxController with Loader, Messages {
     }
     print(listOrder);
     _shoppingBag.value = bag;
-    _storage.setData(
+    final storage = Get.find<SessionStorage>();
+    storage.setData(
       SessionStorageKeys.shoppingBag.key,
       json.encode(listOrder),
     ); //atualiza a lista observável
